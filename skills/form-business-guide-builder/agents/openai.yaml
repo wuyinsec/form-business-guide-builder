@@ -1,0 +1,8 @@
+interface:
+  display_name: "金政P1业务助手制作"
+  short_description: "为金政内控P1整理业务指引并生成可校验DAT"
+  brand_color: "#1769E0"
+  default_prompt: "使用 $form-business-guide-builder 为金政内控系统 P1 版本整理业务助手，先确认系统版本，再根据当前项目资料生成审阅表，确认后生成并校验 DAT。"
+
+policy:
+  allow_implicit_invocation: true

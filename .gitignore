@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE / operating system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Project source materials and generated deliverables
+project-data/
+source-materials/
+private/
+output/
+outputs/
+generated/
+*.dat
+*审阅*.xlsx
+*确认*.xlsx
+
+# Temporary files
+*.tmp
+*.temp
+~$*

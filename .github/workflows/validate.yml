@@ -1,0 +1,48 @@
+name: Validate skill
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile scripts
+        run: python -m compileall -q skills/form-business-guide-builder/scripts
+      - name: Generate review workbook
+        run: |
+          python skills/form-business-guide-builder/scripts/create_review_xlsx.py \
+            skills/form-business-guide-builder/assets/review-records.example.json \
+            /tmp/review-example.xlsx
+      - name: Verify required files and metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path("skills/form-business-guide-builder")
+          required = [
+              root / "SKILL.md",
+              root / "README.md",
+              root / "agents/openai.yaml",
+              root / "references/source-boundary.md",
+              root / "references/four-sections.md",
+              root / "references/workflow-and-review.md",
+              root / "references/dat-format.md",
+              root / "scripts/xlsx_to_dat.py",
+              root / "scripts/validate_dat.py",
+          ]
+          missing = [str(path) for path in required if not path.is_file()]
+          if missing:
+              raise SystemExit("Missing required files: " + ", ".join(missing))
+
+          text = (root / "SKILL.md").read_text(encoding="utf-8")
+          if "name: form-business-guide-builder" not in text:
+              raise SystemExit("Invalid skill name")
+          if not Path("/tmp/review-example.xlsx").is_file():
+              raise SystemExit("Review workbook was not generated")
+          PY
