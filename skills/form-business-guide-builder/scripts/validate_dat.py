@@ -18,6 +18,18 @@ FIELDS = {
     "业务填报指引": "bizFillingGuide",
     "附件清单说明": "attachmentGuide",
 }
+DEFAULT_TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "p1-dat-template.json"
+
+
+def required_entity_keys() -> set[str]:
+    try:
+        data = json.loads(DEFAULT_TEMPLATE.read_text(encoding="utf-8"))
+        entity = data.get("cfgEntity", {})
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"无法读取内置 P1 DAT 格式：{exc}") from exc
+    if not isinstance(entity, dict):
+        raise ValueError("内置 P1 DAT 格式缺少 cfgEntity 对象。")
+    return set(entity)
 
 
 class ParagraphReader(HTMLParser):
@@ -84,12 +96,21 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="校验 DAT 结构及其与审阅表的一致性。")
     parser.add_argument("dat_dir", type=Path, help="DAT 文件目录")
     parser.add_argument("--xlsx", type=Path, help="用于逐字比对的最终审阅表")
+    parser.add_argument(
+        "--account-set-id",
+        help="可选：核对所有 DAT 是否写入指定的 accountSetId（账套ID）",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     errors: list[str] = []
+    try:
+        fixed_keys = required_entity_keys()
+    except ValueError as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        return 1
     dat_files = sorted(args.dat_dir.glob("*.dat"))
     if not dat_files:
         print(f"错误：目录中没有 DAT 文件：{args.dat_dir}", file=sys.stderr)
@@ -117,6 +138,14 @@ def main() -> int:
         if not isinstance(entity, dict):
             errors.append(f"{path.name}：缺少 cfgEntity 对象")
             continue
+        missing_keys = sorted(fixed_keys - set(entity))
+        if missing_keys:
+            errors.append(f"{path.name}：缺少 P1 固定字段：{'、'.join(missing_keys)}")
+        account_set_id = str(entity.get("accountSetId", "")).strip()
+        if not account_set_id or account_set_id == "__ACCOUNT_SET_ID__":
+            errors.append(f"{path.name}：accountSetId（账套ID）缺失或仍为占位值")
+        elif args.account_set_id and account_set_id != str(args.account_set_id).strip():
+            errors.append(f"{path.name}：accountSetId（账套ID）与用户提供值不一致")
         form_name = str(entity.get("formName", "")).strip()
         found_names.add(form_name)
         if not form_name:

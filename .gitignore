@@ -18,6 +18,7 @@ output/
 outputs/
 generated/
 *.dat
+!tools/business-assistant-editor/sample.dat
 *审阅*.xlsx
 *确认*.xlsx
 

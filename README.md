@@ -10,8 +10,9 @@
 - 按“业务助手内容、业务流程指引、业务填报指引、附件清单说明”四个板块生成初稿；
 - 对没有依据的金额、时限、审批条件和必传附件进行拦截或标记待确认；
 - 生成供实施人员和业务人员审阅的 Excel；
-- 以系统导出的 DAT 为模板，批量生成各表单 DAT；
+- 使用内置的 P1 固定 DAT 结构，按目标 `accountSetId`（账套ID）批量生成各表单 DAT；
 - 校验 DAT 结构及其与确认版 Excel 的逐字段一致性。
+- 提供纯本地 DAT 富文本编辑器，便于导入、审阅和重新导出单个 DAT。
 
 ## 安装
 
@@ -54,6 +55,7 @@ form-business-guide-builder/                    # GitHub 仓库
 ├─ CHANGELOG.md                                 # 版本更新记录
 ├─ .gitignore                                   # 排除业务资料和生成文件
 ├─ .github/                                     # GitHub 自动检查配置
+├─ tools/business-assistant-editor/             # 纯本地 DAT 富文本编辑器
 └─ skills/                                      # 可安装的 Skill
    └─ form-business-guide-builder/              # 表单业务指引生成工具
       ├─ SKILL.md                               # Skill 核心入口
@@ -76,7 +78,11 @@ form-business-guide-builder/                    # GitHub 仓库
 
 - Python 3.10 或更高版本；
 - 脚本仅使用 Python 标准库，无需安装第三方依赖；
-- 生成 DAT 前需确认使用金政内控系统 P1 版本，并提供当前系统导出的有效 DAT 样例作为结构模板。
+- 生成 DAT 前需确认使用金政内控系统 P1 版本，并由项目人员提供目标单位准确的 `accountSetId`；正常情况下无需提供 DAT 样例。
+
+## 本地 DAT 编辑器
+
+进入 `tools/business-assistant-editor`，双击“打开业务助手编辑器.bat”即可使用。编辑器不上传文件，能够修改四个富文本板块和目标账套 ID，并保留导入 DAT 中其他字段。跨单位使用时必须核对并改为目标单位的账套 ID。
 
 ## 数据安全
 

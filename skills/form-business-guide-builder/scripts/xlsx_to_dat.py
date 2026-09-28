@@ -21,6 +21,7 @@ FIELDS = {
 }
 REQUIRED_HEADERS = ["表单名称", *FIELDS]
 INVALID_FILENAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+DEFAULT_TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "p1-dat-template.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,7 +29,16 @@ def parse_args() -> argparse.Namespace:
         description="根据已确认的业务助手审阅表批量生成可导入 DAT 文件。"
     )
     parser.add_argument("xlsx", type=Path, help="已确认的业务助手 Excel 文件")
-    parser.add_argument("--template", required=True, type=Path, help="系统导出的 DAT 模板")
+    parser.add_argument(
+        "--account-set-id",
+        required=True,
+        help="目标单位的 accountSetId（账套ID，必须由项目人员准确提供）",
+    )
+    parser.add_argument(
+        "--template",
+        type=Path,
+        help="仅在导入异常排查时使用其他 DAT 模板；正常情况使用内置 P1 固定格式",
+    )
     parser.add_argument("--output-dir", required=True, type=Path, help="DAT 输出目录")
     parser.add_argument(
         "--overwrite", action="store_true", help="允许覆盖输出目录中同名 DAT 文件"
@@ -96,7 +106,10 @@ def records_from_xlsx(path: Path) -> list[dict[str, str]]:
 def main() -> int:
     args = parse_args()
     try:
-        template = load_template(args.template)
+        account_set_id = str(args.account_set_id).strip()
+        if not account_set_id or account_set_id == "__ACCOUNT_SET_ID__":
+            raise ValueError("accountSetId（账套ID）不能为空，也不能使用占位值。")
+        template = load_template(args.template or DEFAULT_TEMPLATE)
         records = records_from_xlsx(args.xlsx)
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for record in records:
@@ -106,6 +119,7 @@ def main() -> int:
         for record in records:
             data = json.loads(json.dumps(template, ensure_ascii=False))
             entity = data["cfgEntity"]
+            entity["accountSetId"] = account_set_id
             entity["formName"] = record["表单名称"]
             for header, key in FIELDS.items():
                 entity[key] = text_to_html(record[header])

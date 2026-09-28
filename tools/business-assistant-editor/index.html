@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>业务助手 DAT 编辑器</title>
+  <style>
+    :root {
+      --blue: #1769e0;
+      --blue-2: #0e56c9;
+      --ink: #172033;
+      --muted: #687386;
+      --line: #dce3ed;
+      --soft: #f4f7fb;
+      --panel: rgba(255,255,255,.94);
+      --danger: #d9363e;
+      --shadow: 0 16px 50px rgba(38,59,94,.11);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 12% -10%, #d9eaff 0, transparent 31rem),
+        linear-gradient(180deg, #f8fbff 0, #eef3f9 100%);
+    }
+    button, select, input { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 278px minmax(0,1fr); }
+    .sidebar {
+      position: sticky; top: 0; height: 100vh; padding: 24px 18px;
+      color: white; background: linear-gradient(160deg,#102b58 0,#174a96 55%,#1769e0 100%);
+      display: flex; flex-direction: column; gap: 22px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 2px 7px; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center;
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.24);
+      font-size: 23px;
+    }
+    .brand h1 { font-size: 17px; margin: 0; letter-spacing: .04em; }
+    .brand p { margin: 3px 0 0; color: #bcd5fa; font-size: 12px; }
+    .file-card {
+      padding: 15px; border-radius: 16px; background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.16);
+    }
+    .file-card small { color: #bcd5fa; }
+    .file-name { margin-top: 7px; font-size: 14px; line-height: 1.5; word-break: break-all; }
+    .nav { display: grid; gap: 7px; }
+    .nav button {
+      border: 0; color: #dceaff; background: transparent; text-align: left;
+      border-radius: 10px; padding: 11px 12px;
+    }
+    .nav button:hover, .nav button.active { background: rgba(255,255,255,.14); color: white; }
+    .side-tip {
+      margin-top: auto; padding: 14px; border-radius: 14px; color: #dceaff;
+      background: rgba(8,27,59,.26); font-size: 12px; line-height: 1.7;
+    }
+    main { min-width: 0; padding: clamp(18px, 2.4vw, 34px) clamp(14px, 2.6vw, 34px) 80px; }
+    .topbar {
+      max-width: 1340px; margin: auto; display: flex; align-items: center;
+      justify-content: space-between; gap: 20px;
+    }
+    .title small { color: var(--blue); font-weight: 700; letter-spacing: .12em; }
+    .title h2 { margin: 7px 0 3px; font-size: 28px; }
+    .title p { margin: 0; color: var(--muted); font-size: 13px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn {
+      border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px;
+      background: white; color: var(--ink); transition: .18s;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 7px 18px rgba(35,56,90,.1); }
+    .btn.primary { color: white; border-color: var(--blue); background: var(--blue); }
+    .btn.primary:hover { background: var(--blue-2); }
+    .btn.ghost { background: rgba(255,255,255,.65); }
+    .meta {
+      max-width: 1340px; margin: 22px auto 0; padding: 16px 18px; border-radius: 15px;
+      background: var(--panel); border: 1px solid rgba(215,225,238,.95); box-shadow: var(--shadow);
+      display: grid; grid-template-columns: 1.35fr 1fr 1.45fr 1fr; gap: 12px;
+    }
+    .meta-item { min-width: 0; }
+    .meta-item label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+    .meta-item strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meta-input {
+      width: 100%; height: 34px; padding: 6px 9px; border: 1px solid var(--line);
+      border-radius: 8px; color: var(--ink); background: #fbfdff; outline: none;
+    }
+    .meta-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(23,105,224,.11); }
+    .status { color: #18864b; }
+    .compat-alert {
+      max-width: 1340px; margin: 12px auto 0; padding: 13px 16px; border-radius: 13px;
+      border: 1px solid #f1d28a; background: #fff9e9; color: #72510b;
+      display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.65;
+    }
+    .compat-alert strong { white-space: nowrap; color: #5d4004; }
+    .compat-alert code { padding: 1px 5px; border-radius: 5px; background: rgba(112,78,4,.08); }
+    .workspace { max-width: 1340px; margin: 18px auto 0; display: grid; gap: 17px; }
+    .editor-card {
+      scroll-margin-top: 18px; background: var(--panel); border: 1px solid rgba(215,225,238,.95);
+      border-radius: 17px; box-shadow: 0 8px 30px rgba(38,59,94,.07); overflow: hidden;
+    }
+    .editor-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 16px 19px 13px;
+    }
+    .editor-title { display: flex; align-items: center; gap: 11px; }
+    .number {
+      width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px;
+      color: var(--blue); background: #eaf3ff; font-weight: 800; font-size: 13px;
+    }
+    .editor-title h3 { margin: 0; font-size: 16px; }
+    .editor-title p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .count { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .toolbar {
+      min-height: 43px; padding: 5px 9px; background: #f7f9fc;
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 3px; flex-wrap: wrap;
+    }
+    .tool, .toolbar select, .color-tool {
+      height: 31px; min-width: 31px; border: 1px solid transparent; border-radius: 7px;
+      color: #465268; background: transparent; display: inline-grid; place-items: center;
+    }
+    .tool:hover, .toolbar select:hover, .color-tool:hover { border-color: #cfd8e7; background: white; }
+    .tool { font-weight: 700; }
+    .toolbar select { padding: 0 7px; max-width: 112px; }
+    .sep { width: 1px; height: 21px; background: #d8dfeb; margin: 0 5px; }
+    .color-tool {
+      position: relative; grid-auto-flow: column; gap: 6px; padding: 0 8px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .color-tool input {
+      width: 18px; height: 18px; padding: 0; border: 0; border-radius: 5px;
+      background: transparent; cursor: pointer;
+    }
+    .color-tool input::-webkit-color-swatch-wrapper { padding: 0; }
+    .color-tool input::-webkit-color-swatch { border: 1px solid #c8d1df; border-radius: 5px; }
+    .editor {
+      min-height: 155px; padding: 18px 21px; outline: none; line-height: 1.72;
+      font-size: 14px; background: white; overflow-x: auto;
+    }
+    .editor:focus { box-shadow: inset 3px 0 var(--blue); }
+    .editor.drag-over { box-shadow: inset 0 0 0 2px var(--blue); background: #f8fbff; }
+    .editor:empty::before { content: "请输入内容…"; color: #b5bdca; }
+    .editor p { margin: 0 0 8px; }
+    .editor ol, .editor ul { margin: 5px 0; padding-left: 2em; }
+    .editor img {
+      max-width: 100%; height: auto; cursor: zoom-in; vertical-align: middle;
+      border-radius: 4px;
+    }
+    .editor img.ba-selected-image {
+      outline: 2px solid var(--blue); outline-offset: 3px; cursor: nwse-resize;
+    }
+    .editor video, .editor iframe { max-width: 100%; }
+    .editor table { max-width: 100%; }
+    .empty {
+      max-width: 760px; margin: 80px auto; padding: 45px; text-align: center;
+      border: 1px dashed #b9c8db; border-radius: 22px; background: rgba(255,255,255,.72);
+    }
+    .empty .icon { font-size: 48px; }
+    .empty h3 { font-size: 22px; margin: 15px 0 8px; }
+    .empty p { color: var(--muted); line-height: 1.8; }
+    .toast {
+      position: fixed; right: 26px; bottom: 24px; z-index: 30; padding: 12px 17px;
+      color: white; background: #172033; border-radius: 10px; box-shadow: var(--shadow);
+      transform: translateY(20px); opacity: 0; pointer-events: none; transition: .25s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .image-toolbar {
+      position: absolute; z-index: 65; display: flex; align-items: center; gap: 4px;
+      padding: 7px; border: 1px solid #cfd8e7; border-radius: 10px;
+      background: rgba(255,255,255,.98); box-shadow: 0 14px 36px rgba(25,45,78,.18);
+    }
+    .image-toolbar button {
+      min-width: 38px; height: 30px; padding: 0 9px; border: 0; border-radius: 7px;
+      color: #43516a; background: transparent; font-size: 12px;
+    }
+    .image-toolbar button:hover { color: var(--blue); background: #eef5ff; }
+    .image-toolbar .danger:hover { color: var(--danger); background: #fff1f1; }
+    .image-toolbar .sep { margin: 0 2px; height: 18px; }
+    .image-resize-handle {
+      position: absolute; z-index: 66; width: 15px; height: 15px; border-radius: 5px;
+      border: 2px solid white; background: var(--blue); box-shadow: 0 4px 12px rgba(23,105,224,.35);
+      touch-action: none;
+    }
+    .image-resize-handle[data-corner="tl"],
+    .image-resize-handle[data-corner="br"] { cursor: nwse-resize; }
+    .image-resize-handle[data-corner="tr"],
+    .image-resize-handle[data-corner="bl"] { cursor: nesw-resize; }
+    .modal {
+      position: fixed; inset: 0; z-index: 40; display: none; place-items: center;
+      background: rgba(17,29,49,.42); backdrop-filter: blur(4px);
+    }
+    .modal.show { display: grid; }
+    .modal-box { width: min(920px,90vw); background: white; border-radius: 17px; box-shadow: var(--shadow); overflow: hidden; }
+    .modal-head { padding: 15px 18px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .modal textarea { width: 100%; height: 430px; border: 0; resize: vertical; padding: 18px; outline: 0; font: 13px/1.6 Consolas, monospace; }
+    .modal-actions { padding: 13px 18px; display: flex; justify-content: flex-end; gap: 9px; border-top: 1px solid var(--line); }
+    input[type=file] { display: none; }
+    .fullscreen { position: fixed; inset: 16px; z-index: 25; border-radius: 17px; box-shadow: 0 30px 100px rgba(0,0,0,.2); }
+    .fullscreen .editor { height: calc(100vh - 127px); overflow: auto; }
+    @media (max-width: 1000px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: static; width: 100%; height: auto; }
+      .nav, .side-tip { display: none; }
+      main { padding: 22px 14px 60px; }
+      .meta { grid-template-columns: 1fr 1fr; }
+      .compat-alert { flex-direction: column; gap: 3px; }
+    }
+    @media (max-width: 720px) {
+      .topbar { align-items: stretch; flex-direction: column; }
+      .actions { justify-content: stretch; }
+      .actions .btn, .actions label { flex: 1 1 150px; text-align: center; }
+      .title h2 { font-size: 24px; }
+      .meta { grid-template-columns: 1fr; }
+      .editor-head { align-items: flex-start; flex-direction: column; }
+      .toolbar { overflow-x: auto; flex-wrap: nowrap; }
+      .fullscreen { inset: 0; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">✦</div>
+      <div><h1>业务助手编辑器</h1><p>DAT REVIEW STUDIO</p></div>
+    </div>
+    <div class="file-card">
+      <small>当前文件</small>
+      <div class="file-name" id="sideFileName">尚未打开 DAT 文件</div>
+    </div>
+    <div class="nav" id="sideNav">
+      <button data-go="content" class="active">01　业务助手内容</button>
+      <button data-go="wfGuide">02　业务流程指引</button>
+      <button data-go="bizFillingGuide">03　业务填报指引</button>
+      <button data-go="attachmentGuide">04　附件清单说明</button>
+    </div>
+    <div class="side-tip">所有编辑仅在当前浏览器页面中进行，不会上传到网络。导出时会保留原 DAT 结构，并写入你调整后的账套 ID 和富文本内容。</div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="title">
+        <small>BUSINESS ASSISTANT</small>
+        <h2 id="pageTitle">业务助手内容审阅</h2>
+        <p>导入 DAT · 富文本修改 · 原结构导出</p>
+      </div>
+      <div class="actions">
+        <label class="btn ghost" for="fileInput">打开 DAT</label>
+        <input id="fileInput" type="file" accept=".dat,application/json">
+        <button class="btn" id="resetBtn">恢复导入内容</button>
+        <button class="btn primary" id="exportBtn">导出修改版 DAT</button>
+      </div>
+    </div>
+
+    <section class="meta" id="metaPanel" hidden>
+      <div class="meta-item"><label>表单名称</label><strong id="formName">—</strong></div>
+      <div class="meta-item"><label>表单 ID</label><strong id="formId">—</strong></div>
+      <div class="meta-item"><label for="accountSetId">账套 ID</label><input class="meta-input" id="accountSetId" spellcheck="false" placeholder="目标单位账套 ID"></div>
+      <div class="meta-item"><label>编辑状态</label><strong class="status" id="editStatus">请先打开 DAT 文件</strong></div>
+    </section>
+    <section class="compat-alert" id="compatAlert" hidden>
+      <strong>温馨提示</strong>
+      <span>如果是从其他单位导出的 DAT 文件，必须修改账套 ID。账套 ID 不能为空，也不能保留模板占位值 <code>__ACCOUNT_SET_ID__</code>；目标账套不一致时，DAT 可能无法在目标账套中正常使用。</span>
+    </section>
+
+    <section class="workspace" id="workspace" hidden></section>
+    <section class="empty" id="emptyState">
+      <div class="icon">📝</div>
+      <h3>打开一个业务助手 DAT 文件</h3>
+      <p>系统会自动识别四段富文本内容。修改完成后，可直接导出为新的 DAT 文件并回到内控系统导入。</p>
+      <label class="btn primary" for="fileInput">选择 DAT 文件</label>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="sourceModal">
+  <div class="modal-box">
+    <div class="modal-head"><strong>编辑 HTML 源码</strong><button class="tool" id="closeModal">×</button></div>
+    <textarea id="sourceText"></textarea>
+    <div class="modal-actions"><button class="btn" id="cancelSource">取消</button><button class="btn primary" id="applySource">应用源码</button></div>
+  </div>
+</div>
+<div class="image-toolbar" id="imageToolbar" hidden>
+  <button type="button" data-img-width="30">30%</button>
+  <button type="button" data-img-width="50">50%</button>
+  <button type="button" data-img-width="100">100%</button>
+  <button type="button" data-img-width="auto">适应</button>
+  <span class="sep"></span>
+  <button type="button" data-img-action="custom">自定</button>
+  <button type="button" data-img-action="replace">替换</button>
+  <button type="button" class="danger" data-img-action="remove">删除</button>
+</div>
+<div class="image-resize-handle" data-corner="tl" hidden title="拖拽调整图片大小"></div>
+<div class="image-resize-handle" data-corner="tr" hidden title="拖拽调整图片大小"></div>
+<div class="image-resize-handle" data-corner="bl" hidden title="拖拽调整图片大小"></div>
+<div class="image-resize-handle" data-corner="br" hidden title="拖拽调整图片大小"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const fieldDefs = [
+  {key:"content", title:"业务助手内容", desc:"说明适用范围和业务定义"},
+  {key:"wfGuide", title:"业务流程指引", desc:"说明申请、审批、报销及支付流程"},
+  {key:"bizFillingGuide", title:"业务填报指引", desc:"说明关键字段、填写顺序和注意事项"},
+  {key:"attachmentGuide", title:"附件清单说明", desc:"说明必传及按实际情况上传的资料"}
+];
+let datObject = null, originalText = "", currentFileName = "", activeEditor = null, dirty = false;
+let selectedImage = null, resizeState = null;
+const savedRanges = new Map();
+const $ = s => document.querySelector(s);
+
+function esc(s=""){ return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+function markDirty(){
+  dirty=true;
+  $("#editStatus").textContent="有未导出的修改";
+}
+function toolButton(cmd,label,title,value=""){
+  return `<button class="tool" type="button" data-cmd="${cmd}" data-value="${value}" title="${title}">${label}</button>`;
+}
+function toolbar(key){
+  return `<div class="toolbar" data-for="${key}">
+    <select data-action="block" title="段落样式"><option value="p">正文</option><option value="h2">标题 1</option><option value="h3">标题 2</option><option value="blockquote">引用</option></select>
+    <span class="sep"></span>
+    ${toolButton("bold","B","加粗")}${toolButton("underline","U","下划线")}${toolButton("italic","I","斜体")}
+    ${toolButton("strikeThrough","S","删除线")}
+    <span class="sep"></span>
+    <select data-action="font" title="字体"><option value="">默认字体</option><option>Microsoft YaHei</option><option>SimSun</option><option>SimHei</option><option>KaiTi</option><option>FangSong</option></select>
+    <select data-action="size" title="字号"><option value="">默认字号</option><option value="2">小号</option><option value="3">正常</option><option value="4">大号</option><option value="5">特大</option></select>
+    <select data-action="lineHeight" title="行高"><option value="">默认行高</option><option value="1.5">1.5</option><option value="1.75">1.75</option><option value="2">2.0</option><option value="2.5">2.5</option></select>
+    <label class="color-tool" title="设置选中文字颜色"><span>字色</span><input type="color" data-action="color" value="#3658e2" aria-label="文字颜色"></label>
+    <label class="color-tool" title="设置选中文字背景色"><span>底色</span><input type="color" data-action="backColor" value="#fff2a8" aria-label="背景颜色"></label>
+    <span class="sep"></span>
+    ${toolButton("insertUnorderedList","•≡","无序列表")}${toolButton("insertOrderedList","1≡","有序列表")}
+    ${toolButton("checkList","☑","待办清单")}
+    ${toolButton("justifyLeft","≡","左对齐")}${toolButton("justifyCenter","≡","居中")}${toolButton("justifyRight","≡","右对齐")}
+    ${toolButton("outdent","←","减少缩进")}${toolButton("indent","→","增加缩进")}
+    <span class="sep"></span>
+    ${toolButton("emoji","☺","插入符号")}${toolButton("createLink","🔗","插入链接")}${toolButton("insertImage","▧","插入图片")}
+    ${toolButton("insertVideo","▶","插入视频")}${toolButton("insertTable","▦","插入表格")}${toolButton("insertHorizontalRule","—","分隔线")}
+    ${toolButton("removeFormat","Tx","清除格式")}
+    <span class="sep"></span>
+    ${toolButton("undo","↶","撤销")}${toolButton("redo","↷","重做")}
+    ${toolButton("source","&lt;/&gt;","HTML 源码")}${toolButton("fullscreen","⛶","全屏编辑")}
+  </div>`;
+}
+function renderEditors(cfg){
+  clearImageSelection();
+  const ws=$("#workspace");
+  ws.innerHTML=fieldDefs.map((f,i)=>`<article class="editor-card" id="card-${f.key}">
+    <div class="editor-head">
+      <div class="editor-title"><span class="number">0${i+1}</span><div><h3>${f.title}</h3><p>${f.desc}</p></div></div>
+      <span class="count" id="count-${f.key}">0 字</span>
+    </div>
+    ${toolbar(f.key)}
+    <div class="editor" id="${f.key}" contenteditable="true" spellcheck="false">${cfg[f.key]||""}</div>
+  </article>`).join("");
+  bindEditors();
+  updateCounts();
+}
+function bindEditors(){
+  document.querySelectorAll(".editor").forEach(ed=>{
+    ed.addEventListener("focus",()=>activeEditor=ed);
+    ed.addEventListener("mouseup",()=>saveSelection(ed));
+    ed.addEventListener("keyup",()=>saveSelection(ed));
+    ed.addEventListener("input",()=>{ markDirty(); updateCounts(); });
+    ed.addEventListener("click",e=>{
+      if(e.target?.tagName==="IMG"){ selectImage(e.target); return; }
+      clearImageSelection();
+    });
+    ed.addEventListener("paste",handleImagePaste);
+    ed.addEventListener("dragover",e=>{
+      if(hasImageFiles(e.dataTransfer)){ e.preventDefault(); ed.classList.add("drag-over"); }
+    });
+    ed.addEventListener("dragleave",()=>ed.classList.remove("drag-over"));
+    ed.addEventListener("drop",e=>{
+      ed.classList.remove("drag-over");
+      if(!hasImageFiles(e.dataTransfer))return;
+      e.preventDefault(); activeEditor=ed; ed.focus(); insertImageFiles(e.dataTransfer.files);
+    });
+  });
+  document.querySelectorAll(".toolbar").forEach(bar=>{
+    bar.addEventListener("mousedown",e=>{
+      activeEditor=$("#"+bar.dataset.for);
+      if(e.target.matches('input[type="color"]')) saveSelection(activeEditor);
+      if(e.target.closest("button")) { e.preventDefault(); restoreSelection(activeEditor); }
+    });
+    bar.addEventListener("click",e=>{
+      const btn=e.target.closest("[data-cmd]"); if(!btn)return;
+      activeEditor=$("#"+bar.dataset.for); restoreSelection(activeEditor);
+      handleCommand(btn.dataset.cmd,btn.dataset.value);
+    });
+    const applyToolbarControl=e=>{
+      if(!e.target.dataset.action)return;
+      activeEditor=$("#"+bar.dataset.for); restoreSelection(activeEditor);
+      const a=e.target.dataset.action, v=e.target.value;
+      if(a==="block") document.execCommand("formatBlock",false,v);
+      if(a==="font") document.execCommand("fontName",false,v);
+      if(a==="size") document.execCommand("fontSize",false,v);
+      if(a==="lineHeight") applyLineHeight(v);
+      if(a==="color") applyColor("foreColor",v);
+      if(a==="backColor") applyColor("hiliteColor",v);
+      markDirty();
+      saveSelection(activeEditor);
+    };
+    bar.addEventListener("change",applyToolbarControl);
+    bar.addEventListener("input",e=>{ if(e.target.matches('input[type="color"]')) applyToolbarControl(e); });
+  });
+}
+function saveSelection(ed){
+  const sel=window.getSelection();
+  if(sel && sel.rangeCount && ed.contains(sel.anchorNode)) savedRanges.set(ed.id,sel.getRangeAt(0).cloneRange());
+}
+function restoreSelection(ed){
+  ed.focus();
+  const range=savedRanges.get(ed.id);
+  if(range){ const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+}
+function hasImageFiles(dataTransfer){
+  return Array.from(dataTransfer?.files||[]).some(file=>file.type.startsWith("image/"));
+}
+function handleImagePaste(e){
+  if(!hasImageFiles(e.clipboardData))return;
+  e.preventDefault();
+  activeEditor=e.currentTarget; activeEditor.focus();
+  insertImageFiles(e.clipboardData.files);
+}
+function insertImageFiles(files){
+  Array.from(files).filter(file=>file.type.startsWith("image/")).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=()=>insertImageHtml(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+function insertImageHtml(src){
+  if(!activeEditor)return;
+  restoreSelection(activeEditor);
+  document.execCommand("insertHTML",false,`<img src="${esc(src)}" alt="图片" style="max-width:100%;height:auto;"><p><br></p>`);
+  markDirty(); updateCounts(); toast("图片已插入，点击图片可缩放或删除");
+}
+document.addEventListener("selectionchange",()=>{
+  const sel=window.getSelection();
+  const node=sel?.anchorNode?.nodeType===3 ? sel.anchorNode.parentElement : sel?.anchorNode;
+  const ed=node?.closest?.(".editor");
+  if(ed && sel.rangeCount && ed.contains(sel.focusNode)){ activeEditor=ed; saveSelection(ed); }
+});
+document.addEventListener("click",e=>{
+  if(e.target.closest?.("#imageToolbar,.image-resize-handle,.editor img"))return;
+  clearImageSelection();
+});
+window.addEventListener("scroll",positionImageTools,true);
+window.addEventListener("resize",positionImageTools);
+function handleCommand(cmd,value){
+  if(cmd==="createLink"){
+    const url=prompt("请输入链接地址：","https://"); if(url) document.execCommand("createLink",false,url);
+  } else if(cmd==="insertImage"){
+    const url=prompt("请输入图片地址；也可以直接把截图/本地图片粘贴到编辑框：","https://");
+    if(url) insertImageHtml(url);
+  } else if(cmd==="insertVideo"){
+    const url=prompt("请输入视频地址：","https://");
+    if(url) document.execCommand("insertHTML",false,`<video src="${esc(url)}" controls style="max-width:100%"></video><p><br></p>`);
+  } else if(cmd==="emoji"){
+    const symbol=prompt("请输入要插入的符号或表情：","✓"); if(symbol) document.execCommand("insertText",false,symbol);
+  } else if(cmd==="checkList"){
+    document.execCommand("insertHTML",false,'<p>☐ 待办事项</p>');
+  } else if(cmd==="insertTable"){
+    const rows=Math.max(1,Math.min(10,Number(prompt("行数：","2"))||0));
+    const cols=Math.max(1,Math.min(8,Number(prompt("列数：","2"))||0));
+    let t='<table border="1" style="border-collapse:collapse;width:100%"><tbody>';
+    for(let r=0;r<rows;r++){t+="<tr>";for(let c=0;c<cols;c++)t+='<td style="padding:6px">&nbsp;</td>';t+="</tr>"}t+="</tbody></table><p><br></p>";
+    document.execCommand("insertHTML",false,t);
+  } else if(cmd==="source"){
+    $("#sourceText").value=activeEditor.innerHTML; $("#sourceModal").classList.add("show");
+  } else if(cmd==="fullscreen"){
+    activeEditor.closest(".editor-card").classList.toggle("fullscreen");
+  } else document.execCommand(cmd,false,value||null);
+  markDirty(); updateCounts();
+}
+function cleanEditorHtml(ed){
+  const clone=ed.cloneNode(true);
+  clone.querySelectorAll(".ba-selected-image").forEach(img=>img.classList.remove("ba-selected-image"));
+  clone.querySelectorAll("img").forEach(img=>{
+    img.style.maxWidth=img.style.maxWidth||"100%";
+    img.style.height=img.style.height||"auto";
+  });
+  return clone.innerHTML;
+}
+function applyLineHeight(value){
+  if(!value)return;
+  const sel=window.getSelection(); if(!sel||!sel.rangeCount)return;
+  let node=sel.anchorNode?.nodeType===3?sel.anchorNode.parentElement:sel.anchorNode;
+  while(node && node!==activeEditor && !/^(P|DIV|LI|H2|H3|BLOCKQUOTE)$/.test(node.tagName)) node=node.parentElement;
+  (node && node!==activeEditor ? node : activeEditor).style.lineHeight=value;
+}
+function applyColor(command,value){
+  document.execCommand("styleWithCSS",false,true);
+  const applied=document.execCommand(command,false,value);
+  if(command==="hiliteColor" && !applied) document.execCommand("backColor",false,value);
+}
+function updateCounts(){
+  fieldDefs.forEach(f=>{ const ed=$("#"+f.key); if(ed) $("#count-"+f.key).textContent=(ed.innerText||"").replace(/\\s/g,"").length+" 字"; });
+}
+function selectImage(img){
+  if(selectedImage && selectedImage!==img) selectedImage.classList.remove("ba-selected-image");
+  selectedImage=img; activeEditor=img.closest(".editor");
+  selectedImage.classList.add("ba-selected-image");
+  positionImageTools();
+}
+function clearImageSelection(){
+  if(selectedImage) selectedImage.classList.remove("ba-selected-image");
+  selectedImage=null; $("#imageToolbar").hidden=true;
+  document.querySelectorAll(".image-resize-handle").forEach(handle=>handle.hidden=true);
+}
+function positionImageTools(){
+  if(!selectedImage || !document.body.contains(selectedImage))return clearImageSelection();
+  const toolbar=$("#imageToolbar"), handles=document.querySelectorAll(".image-resize-handle");
+  const rect=selectedImage.getBoundingClientRect();
+  toolbar.hidden=false; handles.forEach(handle=>handle.hidden=false);
+  const toolbarWidth=toolbar.offsetWidth||360, toolbarHeight=toolbar.offsetHeight||44;
+  let top=rect.bottom + window.scrollY + 10;
+  if(rect.bottom + toolbarHeight + 18 > window.innerHeight) top=rect.top + window.scrollY - toolbarHeight - 10;
+  top=Math.max(window.scrollY+8,top);
+  const left=Math.min(Math.max(rect.left+window.scrollX,window.scrollX+8),window.scrollX+window.innerWidth-toolbarWidth-8);
+  toolbar.style.left=left+"px"; toolbar.style.top=top+"px";
+  const points={
+    tl:[rect.left+window.scrollX-7, rect.top+window.scrollY-7],
+    tr:[rect.right+window.scrollX-7, rect.top+window.scrollY-7],
+    bl:[rect.left+window.scrollX-7, rect.bottom+window.scrollY-7],
+    br:[rect.right+window.scrollX-7, rect.bottom+window.scrollY-7]
+  };
+  handles.forEach(handle=>{
+    const [x,y]=points[handle.dataset.corner];
+    handle.style.left=x+"px"; handle.style.top=y+"px";
+  });
+}
+function setSelectedImageWidth(value){
+  if(!selectedImage)return;
+  if(value==="auto"){
+    selectedImage.style.width=""; selectedImage.style.maxWidth="100%"; selectedImage.style.height="auto";
+  } else {
+    selectedImage.style.width=value+"%"; selectedImage.style.maxWidth="100%"; selectedImage.style.height="auto";
+  }
+  markDirty(); positionImageTools();
+}
+$("#imageToolbar").addEventListener("click",e=>{
+  const width=e.target.dataset.imgWidth, action=e.target.dataset.imgAction;
+  if(width) setSelectedImageWidth(width);
+  if(action==="custom"){
+    const current=Math.round((selectedImage?.getBoundingClientRect().width||0)/(activeEditor?.clientWidth||1)*100)||50;
+    const value=Number(prompt("请输入图片宽度百分比（10-100）：",String(current)));
+    if(value>=10 && value<=100) setSelectedImageWidth(value);
+  }
+  if(action==="replace"){
+    const url=prompt("请输入新的图片地址：",selectedImage?.getAttribute("src")||"https://");
+    if(url && selectedImage){ selectedImage.src=url; markDirty(); toast("图片已替换"); }
+  }
+  if(action==="remove" && selectedImage){
+    const ed=selectedImage.closest(".editor"); selectedImage.remove(); clearImageSelection();
+    activeEditor=ed; markDirty(); updateCounts(); toast("图片已删除");
+  }
+});
+document.querySelectorAll(".image-resize-handle").forEach(handle=>handle.addEventListener("pointerdown",e=>{
+  if(!selectedImage || !activeEditor)return;
+  e.preventDefault();
+  resizeState={
+    corner:e.currentTarget.dataset.corner,
+    startX:e.clientX,
+    startWidth:selectedImage.getBoundingClientRect().width,
+    editorWidth:activeEditor.clientWidth
+  };
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+}));
+window.addEventListener("pointermove",e=>{
+  if(!resizeState || !selectedImage)return;
+  const direction=resizeState.corner.includes("l") ? -1 : 1;
+  const nextWidth=Math.min(Math.max(80,resizeState.startWidth+direction*(e.clientX-resizeState.startX)),resizeState.editorWidth);
+  const percent=Math.max(10,Math.min(100,Math.round(nextWidth/resizeState.editorWidth*100)));
+  selectedImage.style.width=percent+"%"; selectedImage.style.maxWidth="100%"; selectedImage.style.height="auto";
+  positionImageTools();
+});
+window.addEventListener("pointerup",()=>{
+  if(!resizeState)return;
+  resizeState=null; markDirty(); toast("图片尺寸已调整");
+});
+function loadText(text,fileName){
+  try {
+    const obj=JSON.parse(text);
+    if(!obj.cfgEntity) throw new Error("缺少 cfgEntity");
+    datObject=obj; originalText=text; currentFileName=fileName; dirty=false;
+    const c=obj.cfgEntity;
+    renderEditors(c);
+    $("#emptyState").hidden=true; $("#workspace").hidden=false; $("#metaPanel").hidden=false; $("#compatAlert").hidden=false;
+    $("#formName").textContent=c.formName||"未命名表单"; $("#formId").textContent=c.formId||"—";
+    $("#accountSetId").value=c.accountSetId||"";
+    $("#pageTitle").textContent=c.formName||"业务助手内容审阅";
+    $("#sideFileName").textContent=fileName; $("#editStatus").textContent="已载入，可开始审阅";
+    toast("DAT 文件读取成功");
+  } catch(err){ toast("无法读取：不是有效的业务助手 DAT 文件"); }
+}
+$("#fileInput").addEventListener("change",async e=>{
+  const file=e.target.files[0]; if(!file)return;
+  if(dirty && !confirm("当前修改尚未导出，仍要打开新文件吗？")){e.target.value="";return;}
+  loadText(await file.text(),file.name); e.target.value="";
+});
+$("#resetBtn").onclick=()=>{ if(!datObject)return toast("请先打开 DAT 文件"); if(confirm("确定恢复为刚导入时的内容吗？"))loadText(originalText,currentFileName); };
+$("#accountSetId").addEventListener("input",markDirty);
+$("#exportBtn").onclick=()=>{
+  if(!datObject)return toast("请先打开 DAT 文件");
+  const accountSetId=$("#accountSetId").value.trim();
+  if(!accountSetId || accountSetId==="__ACCOUNT_SET_ID__")return toast("请输入目标单位的有效账套 ID");
+  clearImageSelection();
+  fieldDefs.forEach(f=>datObject.cfgEntity[f.key]=cleanEditorHtml($("#"+f.key)));
+  datObject.cfgEntity.accountSetId=accountSetId;
+  const blob=new Blob([JSON.stringify(datObject)],{type:"application/octet-stream;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  const base=(datObject.cfgEntity.formName||currentFileName.replace(/\\.dat$/i,"")||"业务助手");
+  a.download=base+"_修改版.dat"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  dirty=false; $("#editStatus").textContent="已导出修改版 DAT"; toast("修改版 DAT 已导出");
+};
+$("#sideNav").onclick=e=>{ const b=e.target.closest("[data-go]"); if(!b)return; document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#card-"+b.dataset.go)?.scrollIntoView({behavior:"smooth"});};
+$("#closeModal").onclick=$("#cancelSource").onclick=()=>$("#sourceModal").classList.remove("show");
+$("#applySource").onclick=()=>{ if(activeEditor){activeEditor.innerHTML=$("#sourceText").value;markDirty();updateCounts();}$("#sourceModal").classList.remove("show"); };
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
+if(new URLSearchParams(location.search).get("demo")==="1"){
+  fetch("sample.dat").then(r=>r.text()).then(t=>loadText(t,"举办培训费用事前申请单_测试.dat")).catch(()=>{});
+}
+</script>
+</body>
+</html>
